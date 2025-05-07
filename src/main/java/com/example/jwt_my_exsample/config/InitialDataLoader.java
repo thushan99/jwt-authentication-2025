@@ -1,0 +1,64 @@
+package com.example.jwt_my_exsample.config;
+
+import com.example.jwt_my_exsample.model.Role;
+import com.example.jwt_my_exsample.model.User;
+import com.example.jwt_my_exsample.repository.RoleRepository;
+import com.example.jwt_my_exsample.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+
+import java.util.HashSet;
+import java.util.Set;
+
+@Component
+@RequiredArgsConstructor
+public class InitialDataLoader implements CommandLineRunner {
+
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public void run(String... args) {
+
+        // Create roles if they don't exist
+        createRoleIfNotFound("ROLE_USER", "Regular user role");
+        createRoleIfNotFound("ROLE_ADMIN", "Administrator role");
+
+        // Create admin user if it doesn't exist
+        if (!userRepository.existsByUsername("admin")) {
+            Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                    .orElseThrow(() -> new RuntimeException("Error: Admin Role not found."));
+            Role userRole = roleRepository.findByName("ROLE_USER")
+                    .orElseThrow(() -> new RuntimeException("Error: User Role not found."));
+
+            Set<Role> roles = new HashSet<>();
+            roles.add(adminRole);
+            roles.add(userRole);
+
+            User adminUser = User.builder()
+                    .username("admin")
+                    .password(passwordEncoder.encode("admin123"))
+                    .email("admin@example.com")
+                    .firstName("Admin")
+                    .lastName("User")
+                    .roles(roles)
+                    .enabled(true)
+                    .build();
+
+            userRepository.save(adminUser);
+        }
+    }
+
+    private void createRoleIfNotFound(String name, String description) {
+        if (roleRepository.findByName(name).isEmpty()) {
+            Role role = Role.builder()
+                    .name(name)
+                    .description(description)
+                    .build();
+            roleRepository.save(role);
+        }
+    }
+}
